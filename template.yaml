@@ -1,42 +1,282 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   ChatHour
-
-  Sample SAM Template for ChatHour
-
+  A Simple Chat Application
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Parameters:
+  TableName:
+    Type: String
+    Default: "chathour_connections"
+    Description: The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters
+
 Globals:
   Function:
+    Runtime: python3.9
+    Handler: app.lambda_handler
+    MemorySize: 256
     Timeout: 3
-    MemorySize: 128
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref TableName
+        API_ARN: !Sub
+          - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatHourApi}/*/*
+          - ChatHourApi: !Ref ChatHourWebSocket
+        USER_POOL_ID: !Ref ChatHourUserPool
+        CLIENT_ID: !Ref ChatHourUserPoolClient
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  AWSLambdaBasicExecutionRole:
+    Type: "AWS::IAM::Role"
     Properties:
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Architectures:
-        - x86_64
-      Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: get
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  ChatHourUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: ChatHourUserPool
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+
+  ChatHourUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: ChatHourUserPoolClient
+      UserPoolId: !Ref ChatHourUserPool
+      AuthSessionValidity: 3
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: minutes
+        IdToken: minutes
+      EnableTokenRevocation: true
+      PreventUserExistenceErrors: ENABLED
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  ChatHourWebSocket:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ChatHourWebSocket
+      RouteSelectionExpression: $request.body.action
+      ProtocolType: WEBSOCKET
+
+  ChatHourAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: ChatHourAuth
+      ApiId: !Ref ChatHourWebSocket
+      AuthorizerType: REQUEST
+      AuthorizerUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ChatHourAuthorizerFunction.Arn}/invocations
+      IdentitySource:
+        - route.request.header.authorizer
+
+  # Routes
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      OperationName: ConnectRoute
+      RouteKey: $connect
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref ChatHourAuthorizer
+      Target: !Join
+        - "/"
+        - - "integrations"
+          - !Ref ConnectIntegration
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      Description: Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnConnectFunction.Arn}/invocations
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      RouteKey: $disconnect
+      OperationName: DisconnectRoute
+      Target: !Join
+        - "/"
+        - - "integrations"
+          - !Ref DisconnectIntegration
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      Description: Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnDisconnectFunction.Arn}/invocations
+
+  SendRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      RouteKey: sendMessage
+      OperationName: SendRoute
+      Target: !Join
+        - "/"
+        - - "integrations"
+          - !Ref SendIntegration
+  SendIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+      Description: Send Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
+
+  # Lambdas
+  ChatHourAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/chatHourAuthorizer
+      Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
+
+  # AuthorizerPermission:
+  #   Type: AWS::Lambda::Permission
+  #   DependsOn:
+  #     - ChatHourWebSocket
+  #   Properties:
+  #     Action: lambda:InvokeFunction
+  #     FunctionName: !Ref OnConnectFunction
+  #     Principal: apigateway.amazonaws.com
+
+  OnConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/onConnect
+      Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
+  OnConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - ChatHourWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OnConnectFunction
+      Principal: apigateway.amazonaws.com
+
+  OnDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/onDisconnect
+      Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
+
+  OnDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - ChatHourWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OnDisconnectFunction
+      Principal: apigateway.amazonaws.com
+
+  SendMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/sendMessage
+
+  Deployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+      - ConnectRoute
+      - DisconnectRoute
+      - SendRoute
+    Properties:
+      ApiId: !Ref ChatHourWebSocket
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: Prod
+      Description: Prod Stage
+      DeploymentId: !Ref Deployment
+      ApiId: !Ref ChatHourWebSocket
+
+  # DynamoDB
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "connectionId"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "connectionId"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: True
+      TableName: !Ref TableName
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  ConnectionsTableArn:
+    Description: "Connections table ARN"
+    Value: !GetAtt ConnectionsTable.Arn
+
+  OnConnectFunctionArn:
+    Description: "OnConnect function ARN"
+    Value: !GetAtt OnConnectFunction.Arn
+
+  OnDisconnectFunctionArn:
+    Description: "OnDisconnect function ARN"
+    Value: !GetAtt OnDisconnectFunction.Arn
+
+  SendMessageFunctionArn:
+    Description: "SendMessage function ARN"
+    Value: !GetAtt SendMessageFunction.Arn
+
+  WebSocketURI:
+    Description: "The WSS Protocol URI to connect to"
+    Value:
+      !Join [
+        "",
+        [
+          "wss://",
+          !Ref ChatHourWebSocket,
+          ".execute-api.",
+          !Ref "AWS::Region",
+          ".amazonaws.com/",
+          !Ref "Stage",
+        ],
+      ]
+
+  ChatHourUserPoolID:
+    Value: !Ref ChatHourUserPool
+    Description: The UserPool ID
+
+  ChatHourUserPoolClientID:
+    Value: !Ref ChatHourUserPoolClient
+    Description: The App client

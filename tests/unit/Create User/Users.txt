@@ -1,0 +1,5 @@
+USERNAME = 'u53rv47'
+PASSWORD = 'Vij88086@ay'
+EMAIL = 'vijaysingh997022@gmail.com'
+NAME = 'Vijay Singh'
+

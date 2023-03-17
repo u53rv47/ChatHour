@@ -1,0 +1,60 @@
+---
+UserPool:
+  AccountRecoverySetting:
+    RecoveryMechanisms:
+      - Name: verified_email
+        Priority: 1
+  AdminCreateUserConfig:
+    AllowAdminCreateUserOnly: "False"
+    UnusedAccountValidityDays: 7
+  Arn: "arn:aws:cognito-idp:ap-south-1: 198309554968:userpool/ap-south-1_97yS7nuoM"
+  AutoVerifiedAttributes:
+    - email
+  CreationDate: datetime.datetime(2023, 3, 15,21,56,41,421000, tzinfo=tzlocal())
+  DeletionProtection: INACTIVE
+  EmailConfiguration:
+    EmailSendingAccount: COGNITO_DEFAULT
+  EstimatedNumberOfUsers: 1
+  Id: ap-south-1_97yS7nuoM
+  LambdaConfig: {}
+  LastModifiedDate: datetime.datetime(2023,3,15,21,56,41,421000, tzinfo=tzlocal())
+  MfaConfiguration: "OFF"
+  Name: ChatHourUserPool
+  Policies:
+    PasswordPolicy:
+      MinimumLength: 8
+      RequireLowercase: "True"
+      RequireNumbers: "True"
+      RequireSymbols: "True"
+      RequireUppercase: "True"
+      TemporaryPasswordValidityDays: 7
+  SchemaAttributes:
+    - AttributeDataType: String
+      DeveloperOnlyAttribute: "False"
+      Mutable: "False"
+      Name: sub
+      Required: "True"
+      StringAttributeConstraints:
+        MaxLength: "2048"
+        MinLength: "1"
+    - AttributeDataType: String
+      DeveloperOnlyAttribute: "False"
+      Mutable: "True"
+      Name: name
+      Required: "True"
+      StringAttributeConstraints:
+        MaxLength: "2048"
+        MinLength: "0"
+    - AttributeDataType: String
+      DeveloperOnlyAttribute: "False"
+      Mutable: "False"
+      Name: email
+      Required: "True"
+      StringAttributeConstraints:
+        MaxLength: "2048"
+        MinLength: "0"
+  UserAttributeUpdateSettings:
+    AttributesRequireVerificationBeforeUpdate: []
+  UserPoolTags: {}
+  VerificationMessageTemplate:
+    DefaultEmailOption: CONFIRM_WITH_CODE
