@@ -25,7 +25,7 @@ s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-mgo6kep6cp6t"
 s3_prefix = "ChatHour-Stack"
 region = "ap-south-1"
 image_repositories = []
-parameter_overrides = "TableName=\"chathour_connections\""
+parameter_overrides = "TableName=\"chathour_connections\" JoseLayerArn=\"arn:aws:lambda:ap-south-1:198309554968:layer:Jose:1\""
 
 [default.package]
 [default.package.parameters]

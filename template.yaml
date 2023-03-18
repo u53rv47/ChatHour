@@ -10,6 +10,14 @@ Parameters:
     Default: "chathour_connections"
     Description: The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters
 
+  # RequestsLayerArn:
+  #   Type: AWS::SSM::Parameter::Value<String>
+  #   Description: requestslayer Arn
+
+  JoseLayerArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: joselayer Arn
+
 Globals:
   Function:
     Runtime: python3.9
@@ -24,6 +32,7 @@ Globals:
           - ChatHourApi: !Ref ChatHourWebSocket
         USER_POOL_ID: !Ref ChatHourUserPool
         CLIENT_ID: !Ref ChatHourUserPoolClient
+        REGION: !Sub ${AWS::Region}
 
 Resources:
   AWSLambdaBasicExecutionRole:
@@ -163,6 +172,8 @@ Resources:
     Properties:
       CodeUri: src/chatHourAuthorizer
       Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
+      Layers:
+        - !Ref JoseLayerArn
 
   # AuthorizerPermission:
   #   Type: AWS::Lambda::Permission
