@@ -1,0 +1,2 @@
+CLIENT_ID = "7jeammtmg91nuildl8s3nve8q1"
+USER_POOL_ID= "ap-south-1_97yS7nuoM"

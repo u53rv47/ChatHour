@@ -1,22 +1,25 @@
-import json
+import os
+import logging
+import boto3
 
-# import requests
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
+dynamodb = boto3.resource('dynamodb')
 
 
 def lambda_handler(event, context):
+    connections_table = dynamodb.Table(os.environ['CONNECTIONS_TABLE'])
+    response = connections_table.put_item(
+        Item={
+            'connectionId': event['requestContext']['connectionId']})
 
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
+    logger.info("Response: %s", response)
 
-    #     raise e
-
-    return {
+    response = {
         "statusCode": 200,
-        "body": json.dumps({
-            "message": "hello world",
-            # "location": ip.text.replace("\n", "")
-        }),
+        'body':  "Connected Successfully"
     }
+    logger.info("onConnect response: %s", response)
+    return response

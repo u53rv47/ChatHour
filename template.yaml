@@ -3,20 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   ChatHour
   A Simple Chat Application
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+
 Parameters:
   TableName:
     Type: String
     Default: "chathour_connections"
     Description: The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters
-
-  # RequestsLayerArn:
-  #   Type: AWS::SSM::Parameter::Value<String>
-  #   Description: requestslayer Arn
-
-  JoseLayerArn:
-    Type: AWS::SSM::Parameter::Value<String>
-    Description: joselayer Arn
 
 Globals:
   Function:
@@ -26,7 +18,7 @@ Globals:
     Timeout: 3
     Environment:
       Variables:
-        TABLE_NAME: !Ref TableName
+        CONNECTIONS_TABLE: !Ref TableName
         API_ARN: !Sub
           - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatHourApi}/*/*
           - ChatHourApi: !Ref ChatHourWebSocket
@@ -50,6 +42,7 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::198309554968:policy/ExecuteAPI"
 
   ChatHourUserPool:
     Type: AWS::Cognito::UserPool
@@ -91,6 +84,7 @@ Resources:
       GenerateSecret: false
       ExplicitAuthFlows:
         - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
 
   ChatHourWebSocket:
     Type: AWS::ApiGatewayV2::Api
@@ -173,16 +167,7 @@ Resources:
       CodeUri: src/chatHourAuthorizer
       Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
       Layers:
-        - !Ref JoseLayerArn
-
-  # AuthorizerPermission:
-  #   Type: AWS::Lambda::Permission
-  #   DependsOn:
-  #     - ChatHourWebSocket
-  #   Properties:
-  #     Action: lambda:InvokeFunction
-  #     FunctionName: !Ref OnConnectFunction
-  #     Principal: apigateway.amazonaws.com
+        - arn:aws:lambda:ap-south-1:198309554968:layer:Jose:4
 
   OnConnectFunction:
     Type: AWS::Serverless::Function
@@ -217,6 +202,16 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/sendMessage
+      Role: !GetAtt AWSLambdaBasicExecutionRole.Arn
+
+  SendMessagePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - ChatHourWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SendMessageFunction
+      Principal: apigateway.amazonaws.com
 
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment

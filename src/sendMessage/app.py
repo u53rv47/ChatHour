@@ -1,22 +1,38 @@
+import os
 import json
+import boto3
+import logging
 
-# import requests
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+dynamodb_client = boto3.client('dynamodb')
 
 
 def lambda_handler(event, context):
+    message = json.loads(event['body']['message'])
 
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
+    paginator = dynamodb_client.get_paginator('scan')
+    connectionIds = []
+    for page in paginator.paginate(TableName=os.environ['CONNECTIONS_TABLE']):
+        connectionIds.extend(page['Items'])
 
-    #     raise e
+    apigatewaymanagementapi = boto3.client(
+        'apigatewaymanagementapi',
+        endpoint_url="https://" +
+        event["requestContext"]["domainName"] + '/' +
+        event["requestContext"]["stage"]
+    )
 
-    return {
+    for connectionId in connectionIds:
+        apigatewaymanagementapi.post_to_connection(
+            Data=message,
+            ConnectionId=connectionId['connectionId']['S"']
+        )
+
+    response = {
         "statusCode": 200,
-        "body": json.dumps({
-            "message": "hello world",
-            # "location": ip.text.replace("\n", "")
-        }),
+        'body':  "message sent Successfully"
     }
+    logger.info("sendMessage response: %s", response)
+    return response

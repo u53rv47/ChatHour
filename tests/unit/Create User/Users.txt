@@ -3,3 +3,7 @@ PASSWORD = 'Vij88086@ay'
 EMAIL = 'vijaysingh997022@gmail.com'
 NAME = 'Vijay Singh'
 
+USERNAME = 'thephilomath'
+PASSWORD = 'Vij88086@ay'
+EMAIL = 'thephilomathworld@gmail.com'
+NAME = 'The Philomath'

@@ -1,0 +1,47 @@
+{
+    "requestContext": {
+        "routeKey": "sendMessage",
+        "messageId": "CRwinelhhcwCFLg=",
+        "eventType": "MESSAGE",
+        "extendedRequestId": "CRwinFA5hcwFTbQ=",
+        "requestTime": "24/Mar/2023: 08: 37: 23 +0000",
+        "messageDirection": "IN",
+        "stage": "Prod",
+        "connectedAt": 1679647035038,
+        "requestTimeEpoch": 1679647043620,
+        "identity": {
+            "sourceIp": "49.36.168.245"
+        },
+        "requestId": "CRwinFA5hcwFTbQ=",
+        "domainName": "1qmwze1tod.execute-api.ap-south-1.amazonaws.com",
+        "connectionId": "CRwhRelUBcwCFLg=",
+        "apiId": "1qmwze1tod"
+    },
+    "body": "{"action": "sendMessage",
+    "message": "Hi from t1"
+}", "isBase64Encoded": False
+}
+[INFO
+] 2023-03-24T08: 37: 24.067Z 666d4144-f9a3-4ae2-81aa-1db9dc770c76 {
+"requestContext": {
+    "routeKey": "sendMessage",
+    "messageId": "CRwinelhhcwCFLg=",
+    "eventType": "MESSAGE",
+    "extendedRequestId": "CRwinFA5hcwFTbQ=",
+    "requestTime": "24/Mar/2023: 08: 37: 23 +0000",
+    "messageDirection": "IN",
+    "stage": "Prod",
+    "connectedAt": 1679647035038,
+    "requestTimeEpoch": 1679647043620,
+    "identity": {
+        "sourceIp": "49.36.168.245"
+    },
+    "requestId": "CRwinFA5hcwFTbQ=",
+    "domainName": "1qmwze1tod.execute-api.ap-south-1.amazonaws.com",
+    "connectionId": "CRwhRelUBcwCFLg=",
+    "apiId": "1qmwze1tod"
+},
+"body": "{"action": "sendMessage",
+"message": "Hi from t1"
+}", "isBase64Encoded": False
+}

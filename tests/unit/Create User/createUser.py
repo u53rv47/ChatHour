@@ -2,10 +2,10 @@ import os
 from pprint import pprint
 import boto3
 
-USERNAME = 'u53rv47'
+USERNAME = 'thephilomath'
 PASSWORD = 'Vij88086@ay'
-EMAIL = 'vijaysingh997022@gmail.com'
-NAME = 'Vijay Singh'
+EMAIL = 'thephilomathworld@gmail.com'
+NAME = 'The Philomath'
 
 CLIENT_ID = '7jeammtmg91nuildl8s3nve8q1'
 

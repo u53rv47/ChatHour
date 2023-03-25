@@ -1,22 +1,25 @@
+import boto3
+import os
 import json
+import logging
 
-# import requests
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+dynamodb = boto3.resource('dynamodb')
 
 
 def lambda_handler(event, context):
+    connections_table = dynamodb.Table(os.environ['CONNECTIONS_TABLE'])
+    response = connections_table.delete_item(
+        Key={
+            'connectionId': event['requestContext']['connectionId']})
 
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
+    logger.info("Response: %s", response)
 
-    #     raise e
-
-    return {
+    response = {
         "statusCode": 200,
-        "body": json.dumps({
-            "message": "hello world",
-            # "location": ip.text.replace("\n", "")
-        }),
+        'body':  "Disconnected Successfully"
     }
+    logger.info("onDisconnect response: %s", response)
+    return response

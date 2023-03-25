@@ -4,6 +4,10 @@ import time
 import urllib.request
 from jose import jwk, jwt
 from jose.utils import base64url_decode
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 region = os.environ['REGION']
 userpool_id = os.environ['USER_POOL_ID']
@@ -20,7 +24,22 @@ keys = json.loads(response.decode('utf-8'))['keys']
 
 
 def lambda_handler(event, context):
-    token = event['token']
+    authResponse = {
+        'principalId': "Default Response",
+        'policyDocument': {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "execute-api:Invoke",
+                    "Effect": 'Deny',
+                    "Resource": "arn:aws:execute-api:ap-south-1:198309554968:1qmwze1tod/*/*"
+                }
+            ]
+        }
+    }
+
+    token = event['queryStringParameters']['authorizer']
+
     # get the kid from the headers prior to verification
     headers = jwt.get_unverified_headers(token)
     kid = headers['kid']
@@ -31,9 +50,12 @@ def lambda_handler(event, context):
             key_index = i
             break
     if key_index == -1:
-        # print('Public key not found in jwks.json')
-        return False
+        logger.info('Public key not found in jwks.json')
+        authResponse['policyDocument']['Statement'][0]['Effect'] = 'Deny'
+        authResponse['principalId'] = 'Public key not found in jwks.json'
+        return authResponse
     # construct the public key
+    logger.info('Public key found in jwks.json')
     public_key = jwk.construct(keys[key_index])
     # get the last two sections of the token,
     # message and signature (encoded in base64)
@@ -42,20 +64,29 @@ def lambda_handler(event, context):
     decoded_signature = base64url_decode(encoded_signature.encode('utf-8'))
     # verify the signature
     if not public_key.verify(message.encode("utf8"), decoded_signature):
-        # print('Signature verification failed')
-        return False
-    # print('Signature successfully verified')
+        logger.info('Signature verification failed')
+        authResponse['policyDocument']['Statement'][0]['Effect'] = 'Deny'
+        authResponse['principalId'] = 'Signature verification failed'
+        return authResponse
+    logger.info('Signature successfully verified')
     # since we passed the verification, we can now safely
     # use the unverified claims
     claims = jwt.get_unverified_claims(token)
     # additionally we can verify the token expiration
     if time.time() > claims['exp']:
-        # print('Token is expired')
-        return False
+        logger.info('Token is expired')
+        authResponse['policyDocument']['Statement'][0]['Effect'] = 'Deny'
+        authResponse['principalId'] = 'Token is expired'
+        return authResponse
+    logger.info('Token has not yet been expired')
     # and the Audience  (use claims['client_id'] if verifying an access token)
     if claims['aud'] != app_client_id:
-        # print('Token was not issued for this audience')
-        return False
+        logger.info('Token was not issued for this audience')
+        authResponse['policyDocument']['Statement'][0]['Effect'] = 'Deny'
+        authResponse['principalId'] = 'Token was not issued for this audience'
+        return authResponse
     # now we can use the claims
-    # print(claims)
-    return claims
+    logger.info('Authentication Passed with Claims: %s', claims)
+    authResponse['policyDocument']['Statement'][0]['Effect'] = 'Allow'
+    authResponse['principalId'] = 'Authentication Passed'
+    return authResponse
